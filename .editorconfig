@@ -1,0 +1,33 @@
+root = true
+
+# ── Все файлы ───────────────────────────────────────────────
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+# ── C# ──────────────────────────────────────────────────────
+[*.cs]
+indent_size = 4
+# Качество кода
+dotnet_sort_system_directives_first = true
+csharp_style_namespace_declarations = file_scoped:suggestion
+csharp_prefer_braces = true:suggestion
+dotnet_style_require_accessibility_modifiers = always:suggestion
+# var
+csharp_style_var_when_type_is_apparent = true:suggestion
+
+# ── Файлы проектов / конфиги ────────────────────────────────
+[*.{csproj,props,targets,json,yml,yaml,xml,slnx}]
+indent_size = 2
+
+# ── Python ──────────────────────────────────────────────────
+[*.py]
+indent_size = 4
+
+# ── Markdown ────────────────────────────────────────────────
+[*.md]
+trim_trailing_whitespace = false
