@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+# Отменять предыдущие запуски в той же ветке/PR
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build & Test (.NET)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Если решения ещё нет — джоба не падает, просто сообщает об этом.
+      - name: Find solution
+        id: sln
+        run: |
+          file=$(find . -name '*.sln' -o -name '*.slnx' | head -n1)
+          if [ -z "$file" ]; then
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Решение (.sln/.slnx) не найдено — сборка пропущена."
+          else
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            echo "path=$file" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup .NET
+        if: steps.sln.outputs.found == 'true'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        if: steps.sln.outputs.found == 'true'
+        run: dotnet restore "${{ steps.sln.outputs.path }}"
+
+      - name: Build
+        if: steps.sln.outputs.found == 'true'
+        run: dotnet build "${{ steps.sln.outputs.path }}" --configuration Release --no-restore
+
+      - name: Test
+        if: steps.sln.outputs.found == 'true'
+        run: dotnet test "${{ steps.sln.outputs.path }}" --configuration Release --no-build --verbosity normal
