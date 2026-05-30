@@ -1,0 +1,8 @@
+grpcio
+grpcio-tools
+transformers==4.44.2
+soundfile
+setuptools==69.5.1
+librosa==0.9.2
+coqpit
+trainer

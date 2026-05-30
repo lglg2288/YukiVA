@@ -1,0 +1,21 @@
+services:
+  tts:
+    image: yukivaservicetts-tts:latest
+    ports:
+      - "50052:50052"
+    volumes:
+      - ./models:/root/.local/share/tts
+      - ./speakers:/app/speakers
+    environment:
+      - GRPC_PORT=50052
+      - SPEAKER_WAV=speakers/reference.wav
+      - TTS_LANGUAGE=ru
+      - COQUI_TOS_AGREED=1
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+              count: 1
+    restart: unless-stopped

@@ -1,0 +1,57 @@
+services:
+  stt-large-v3:
+    build:
+      context: .
+      args:
+        MODEL_NAME: large-v3
+    environment:
+      MODEL_NAME: large-v3
+      MIN_VRAM_MB: 3500
+    ports:
+      - "50051:50051"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ['0']
+              capabilities: [gpu]
+    restart: unless-stopped
+
+  stt-large-v3-turbo:
+    build:
+      context: .
+      args:
+        MODEL_NAME: large-v3-turbo
+    environment:
+      MODEL_NAME: large-v3-turbo
+      MIN_VRAM_MB: 2000
+    ports:
+      - "50052:50051"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ['0']
+              capabilities: [gpu]
+    restart: unless-stopped
+
+  stt-large-v3-turbo-russian:
+    build:
+      context: .
+      args:
+        MODEL_NAME: large-v3-turbo-russian
+    environment:
+      MODEL_NAME: large-v3-turbo-russian
+      MIN_VRAM_MB: 2000
+    ports:
+      - "50053:50051"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ['0']
+              capabilities: [gpu]
+    restart: unless-stopped

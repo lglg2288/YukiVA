@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package order;
+
+message TTSrequest {
+  string text = 1;
+}
+
+message TTSresponse {
+  bytes audio = 1;
+}
+
+service TTSservice {
+  rpc GenerateAudio (TTSrequest) returns (TTSresponse);
+}
