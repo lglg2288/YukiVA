@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="YukiVA.Orchestrator.Api/YukiVA.Orchestrator.Api.csproj" />
+  <Project Path="YukiVA.Orchestrator.Application/YukiVA.Orchestrator.Application.csproj" />
+  <Project Path="YukiVA.Orchestrator.Domain/YukiVA.Orchestrator.Domain.csproj" />
+  <Project Path="YukiVA.Orchestrator.Infrastructure/YukiVA.Orchestrator.Infrastructure.csproj" />
+  <Project Path="YukiVA.Orchestrator.Tests/YukiVA.Orchestrator.Tests.csproj" />
+</Solution>
