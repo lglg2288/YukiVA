@@ -1,0 +1,11 @@
+# Нормализовать окончания строк: в репозитории всегда LF
+* text=auto eol=lf
+
+# Бинарники не трогать
+*.png binary
+*.jpg binary
+*.wav binary
+*.mp3 binary
+*.pth binary
+*.bin binary
+*.docx binary
