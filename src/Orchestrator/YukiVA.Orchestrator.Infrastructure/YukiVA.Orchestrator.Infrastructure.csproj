@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\YukiVA.Orchestrator.Domain\YukiVA.Orchestrator.Domain.csproj" />
+    <ProjectReference Include="..\YukiVA.Orchestrator.Application\YukiVA.Orchestrator.Application.csproj" />
   </ItemGroup>
 
 </Project>
