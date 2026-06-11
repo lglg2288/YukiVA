@@ -4,7 +4,9 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using YukiVA.Orchestrator.Application.Abstractions;
 using YukiVA.Orchestrator.Infrastructure.Persistence;
+using YukiVA.Orchestrator.Infrastructure.Repositories;
 
 namespace YukiVA.Orchestrator.Infrastructure;
 
@@ -17,10 +19,9 @@ public static class DependencyInjection
         var connecrionString = configuration.GetConnectionString("Postgres") ??
             throw new InvalidOperationException("Connection string 'Postgres' not set. (DI from Infrastructure)");
 
-        // Зарегистрировать OrchestratorDbContext в DI-контейнере.
-        // Внедрять его в сервисы через конструктор.
         services.AddDbContext<OrchestratorDbContext>(options =>
             options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
+        services.AddScoped<ISessionRepository, SessionRepository>();
         return services;
     }
 }
