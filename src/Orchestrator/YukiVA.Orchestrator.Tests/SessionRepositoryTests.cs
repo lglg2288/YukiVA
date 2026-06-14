@@ -10,8 +10,7 @@ namespace YukiVA.Orchestrator.Tests;
 // IAsyncLifetime — xUnit вызовет InitializeAsync до тестов и DisposeAsync после.
 public class SessionRepositoryTests : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder()
-        .WithImage("postgres:17")
+    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:17")
         .Build();
 
     // Поднять контейнер и накатить схему ДО тестов.
