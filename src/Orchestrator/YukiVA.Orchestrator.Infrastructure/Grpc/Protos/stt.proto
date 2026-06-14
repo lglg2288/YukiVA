@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+option csharp_namespace = "YukiVA.Orchestrator.Infrastructure.Grpc.Stt";
+
+package pipeline.stt.v1;
+
+message STTrequest {
+  bytes audio = 1;
+}
+
+message STTresponse {
+  string text = 1;
+}
+
+message StatusRequest {}
+
+message StatusResponse {
+  string model_name = 1;
+  int32  queue_size   = 2;
+  bool   is_processing = 3;
+}
+
+service STTservice {
+  rpc ConvertToText (STTrequest)   returns (STTresponse);
+  rpc GetStatus     (StatusRequest) returns (StatusResponse);
+}
