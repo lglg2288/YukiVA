@@ -24,7 +24,7 @@ public static class DependencyInjection
             throw new InvalidOperationException("Connection string 'Postgres' not set. (DI from Infrastructure)");
 
         services.AddDbContext<OrchestratorDbContext>(options =>
-            options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
+            options.UseNpgsql(configuration.GetConnectionString("Postgres")));
         services.Configure<ServiceEndpointsOptions>(configuration.GetSection(ServiceEndpointsOptions.SectionName));
         services.AddGrpcClient<STTservice.STTserviceClient>((sp, options) =>
         {
