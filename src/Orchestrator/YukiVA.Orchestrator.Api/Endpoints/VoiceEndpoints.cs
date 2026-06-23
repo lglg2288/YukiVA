@@ -1,14 +1,13 @@
+using System.Text.Json;
 using YukiVA.Orchestrator.Application.Abstractions;
 using YukiVA.Orchestrator.Application.UseCases.ProcessVoiceTurn;
+using YukiVA.Orchestrator.Application.Models;
 
 namespace YukiVA.Orchestrator.Api.Endpoints;
 
+
 public static class VoiceEndpoints
 {
-    /// <summary>
-    /// Голосовой API: один POST для приёма аудио и ответа аудио, плюс GET для получения истории сообщений текстом.
-    /// </summary>
-    /// <param name="app"></param>
     public static void MapVoiceEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapPost("/api/voice", async (
@@ -18,20 +17,39 @@ public static class VoiceEndpoints
             Guid? sessionId,
             CancellationToken ct) =>
         {
-            using var ms = new MemoryStream();
-            await request.Body.CopyToAsync(ms, ct);
-            var audio = ms.ToArray();
+            if (!request.HasFormContentType)
+                return Results.BadRequest("Ожидается multipart/form-data.");
 
-            if (audio.Length == 0)
-                return Results.BadRequest("Пустое аудио.");
+            var form = await request.ReadFormAsync(ct);
 
-            var result = await handler.HandleAsync(audio, sessionId, ct);
+            var audioFile = form.Files.GetFile("audio");
+            if (audioFile is null || audioFile.Length == 0)
+                return Results.BadRequest("Отсутствует аудио (часть 'audio').");
 
-            response.Headers["X-Session-Id"] = result.SessionPublicId.ToString();
-            response.Headers["X-User-Text"] = System.Net.WebUtility.UrlEncode(result.UserText);
-            response.Headers["X-Assistant-Text"] = System.Net.WebUtility.UrlEncode(result.AssistantText);
+            byte[] audio;
+            using (var ms = new MemoryStream())
+            {
+                await audioFile.CopyToAsync(ms, ct);
+                audio = ms.ToArray();
+            }
 
-            return Results.File(result.AudioReply, "audio/wav");
+            var tools = ParseTools(form["tools"]);
+
+            var result = await handler.HandleVoiceAsync(audio, sessionId, tools, ct);
+            return await WriteResultAsync(response, result);
+        });
+
+        app.MapPost("/api/voice/tool-result", async (
+            HttpResponse response,
+            ProcessVoiceTurnHandler handler,
+            ToolResultRequest body,
+            CancellationToken ct) =>
+        {
+            var tools = ParseTools(body.ToolsJson);
+
+            var result = await handler.HandleToolResultAsync(
+                body.SessionId, body.Result, tools, ct);
+            return await WriteResultAsync(response, result);
         });
 
         app.MapGet("/api/sessions/{publicId:guid}/messages", async (
@@ -40,8 +58,7 @@ public static class VoiceEndpoints
             CancellationToken ct) =>
         {
             var session = await sessions.GetByPublicIdAsync(publicId, ct);
-            if (session is null)
-                return Results.NotFound();
+            if (session is null) return Results.NotFound();
 
             var messages = session.Messages
                 .Select(m => new { role = m.Role.ToString(), text = m.Text, at = m.CreatedAt })
@@ -50,4 +67,40 @@ public static class VoiceEndpoints
             return Results.Ok(new { sessionId = session.PublicId, messages });
         });
     }
+
+    private static async Task<IResult> WriteResultAsync(
+        HttpResponse response, ProcessVoiceTurnResult result)
+    {
+        response.Headers["X-Session-Id"] = result.SessionPublicId.ToString();
+
+        if (result.IsToolCall)
+        {
+            return Results.Json(new
+            {
+                type = "tool_call",
+                sessionId = result.SessionPublicId,
+                toolCallId = result.ToolCallId,
+                name = result.ToolName,
+                arguments = result.ToolArgumentsJson
+            });
+        }
+
+        response.Headers["X-Assistant-Text"] =
+            System.Net.WebUtility.UrlEncode(result.AssistantText ?? "");
+        return Results.File(result.AudioReply!, "audio/wav");
+    }
+
+    private static IReadOnlyList<ToolDefinition> ParseTools(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return Array.Empty<ToolDefinition>();
+
+        return JsonSerializer.Deserialize<List<ToolDefinition>>(json)
+            ?? new List<ToolDefinition>();
+    }
+
+    private record ToolResultRequest(
+        Guid SessionId,
+        string Result,
+        string? ToolsJson);
 }

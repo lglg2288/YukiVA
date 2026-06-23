@@ -1,7 +1,10 @@
+using System.ComponentModel;
 using System.Net.Http.Json;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Options;
 using YukiVA.Orchestrator.Application.Abstractions;
+using YukiVA.Orchestrator.Application.Models;
 using YukiVA.Orchestrator.Domain.Entities;
 using YukiVA.Orchestrator.Domain.Enums;
 using YukiVA.Orchestrator.Infrastructure.Options;
@@ -19,29 +22,62 @@ public class DeepSeekLlmService : ILlmService
         _options = options.Value;
     }
 
-    public async Task<string> CompleteAsync(
+    public async Task<LlmResult> CompleteAsync(
         IReadOnlyList<Message> history,
+        IReadOnlyList<ToolDefinition> availableTools,
         CancellationToken cancellationToken = default)
     {
         var messages = new List<ChatMessage>
         {
-            new("system", _options.SystemPrompt)
+            new() { Role = "system", Content = _options.SystemPrompt }
         };
 
         foreach (var m in history)
         {
-            messages.Add(new ChatMessage(MapRole(m.Role), m.Text));
+            messages.Add(new ChatMessage()
+                        { Role = MapRole(m.Role), Content = m.Text });
         }
 
-        var request = new ChatRequest(_options.Model, messages);
+        List<Tool>? tools = null;
+        if (availableTools.Count > 0)
+        {
+            tools = availableTools.Select(t => new Tool
+            {
+                Function = new FunctionDef
+                {
+                    Name = t.Name,
+                    Description = t.Description,
+                    Parameters = JsonSerializer.Deserialize<JsonElement>(t.ParametersJsonSchema)
+                }
+            }).ToList();
+        }
+
+        var request = new ChatRequest()
+        {
+            Model = _options.Model,
+            Messages = messages,
+            Tools = tools
+        };
 
         var response = await _http.PostAsJsonAsync("/chat/completions", request, cancellationToken);
         response.EnsureSuccessStatusCode();
 
-        var result = await response.Content.ReadFromJsonAsync<ChatResponse>(cancellationToken);
-
-        return result?.Choices.FirstOrDefault()?.Message.Content
+        var result = await response.Content.ReadFromJsonAsync<ChatResponse>(cancellationToken)
             ?? throw new InvalidOperationException("Пустой ответ от LLM.");
+
+        var choice = result.Choices.FirstOrDefault()
+            ?? throw new InvalidOperationException("LLM не вернула ни одного варианта ответа.");
+
+        var toolCall = choice.Message.ToolCalls?.FirstOrDefault();
+        if (toolCall is not null)
+        {
+            return LlmResult.FromToolCall(
+                toolCall.Id,
+                toolCall.Function.Name,
+                toolCall.Function.Arguments);
+        }
+
+        return LlmResult.FromText(choice.Message.Content ?? "");
     }
 
     private static string MapRole(MessageRole role) => role switch
@@ -53,18 +89,59 @@ public class DeepSeekLlmService : ILlmService
         _ => "user"
     };
 
+    
+    // DTOs
 
-    private record ChatRequest(
-        [property: JsonPropertyName("model")] string Model,
-        [property: JsonPropertyName("messages")] List<ChatMessage> Messages);
+    private class ChatRequest
+    {
+        [JsonPropertyName("model")] public string Model { get; set; } = "";
+        [JsonPropertyName("messages")] public List<ChatMessage> Messages { get; set; } = new();
+        [JsonPropertyName("tools")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public List<Tool>? Tools { get; set; }
+    }
 
-    private record ChatMessage(
-        [property: JsonPropertyName("role")] string Role,
-        [property: JsonPropertyName("content")] string Content);
+    private class ChatMessage
+    {
+        [JsonPropertyName("role")] public string Role { get; set; } = "";
+        [JsonPropertyName("content")] public string? Content { get; set; }
+        [JsonPropertyName("tool_calls")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public List<ToolCall>? ToolCalls { get; set; }
+    }
 
-    private record ChatResponse(
-        [property: JsonPropertyName("choices")] List<Choice> Choices);
+    private class Tool
+    {
+        [JsonPropertyName("type")] public string Type { get; set; } = "function";
+        [JsonPropertyName("function")] public FunctionDef Function { get; set; } = new();
+    }
 
-    private record Choice(
-        [property: JsonPropertyName("message")] ChatMessage Message);
+    private class FunctionDef
+    {
+        [JsonPropertyName("name")] public string Name { get; set; } = "";
+        [JsonPropertyName("description")] public string Description { get; set; } = "";
+        [JsonPropertyName("parameters")] public JsonElement Parameters { get; set; }
+    }
+
+    private class ToolCall
+    {
+        [JsonPropertyName("id")] public string Id { get; set; } = "";
+        [JsonPropertyName("function")] public ToolCallFunction Function { get; set; } = new();
+    }
+
+    private class ToolCallFunction
+    {
+        [JsonPropertyName("name")] public string Name { get; set; } = "";
+        [JsonPropertyName("arguments")] public string Arguments { get; set; } = "";
+    }
+
+    private class ChatResponse
+    {
+        [JsonPropertyName("choices")] public List<Choice> Choices { get; set; } = new();
+    }
+
+    private class Choice
+    {
+        [JsonPropertyName("message")] public ChatMessage Message { get; set; } = new();
+    }
 }
