@@ -35,8 +35,10 @@ namespace YukiVA.Orchestrator.Infrastructure.Migrations
                     PublicId = table.Column<Guid>(type: "uuid", nullable: false),
                     SessionId = table.Column<long>(type: "bigint", nullable: false),
                     Role = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
-                    Text = table.Column<string>(type: "text", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                    Text = table.Column<string>(type: "text", nullable: true),
+                    ToolCallId = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    tool_calls = table.Column<string>(type: "jsonb", nullable: true)
                 },
                 constraints: table =>
                 {

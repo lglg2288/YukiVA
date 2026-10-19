@@ -21,6 +21,9 @@ namespace YukiVA.Orchestrator.Infrastructure.Persistence.Configurations
 
             builder.Property(s => s.CreatedAt).IsRequired();
 
+            // Вычисляется из Messages, в БД не хранится.
+            builder.Ignore(s => s.PendingToolCalls);
+
             builder.HasMany(s => s.Messages)
                 .WithOne()
                 .HasForeignKey(m => m.SessionId)

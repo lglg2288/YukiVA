@@ -35,7 +35,16 @@ public class DeepSeekLlmService : ILlmService
         foreach (var m in history)
         {
             messages.Add(new ChatMessage()
-                        { Role = MapRole(m.Role), Content = m.Text });
+            {
+                Role = MapRole(m.Role),
+                Content = m.Text,
+                ToolCallId = m.ToolCallId,
+                ToolCalls = m.ToolCalls.Count == 0 ? null : m.ToolCalls.Select(c => new ToolCall
+                {
+                    Id = c.CallId,
+                    Function = new ToolCallFunction { Name = c.Name, Arguments = c.ArgumentsJson }
+                }).ToList()
+            });
         }
 
         List<Tool>? tools = null;
@@ -108,6 +117,9 @@ public class DeepSeekLlmService : ILlmService
         [JsonPropertyName("tool_calls")]
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public List<ToolCall>? ToolCalls { get; set; }
+        [JsonPropertyName("tool_call_id")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? ToolCallId { get; set; }
     }
 
     private class Tool
@@ -126,6 +138,7 @@ public class DeepSeekLlmService : ILlmService
     private class ToolCall
     {
         [JsonPropertyName("id")] public string Id { get; set; } = "";
+        [JsonPropertyName("type")] public string Type { get; set; } = "function";
         [JsonPropertyName("function")] public ToolCallFunction Function { get; set; } = new();
     }
 

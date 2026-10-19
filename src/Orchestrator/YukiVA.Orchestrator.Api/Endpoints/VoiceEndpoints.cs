@@ -48,7 +48,7 @@ public static class VoiceEndpoints
             var tools = ParseTools(body.ToolsJson);
 
             var result = await handler.HandleToolResultAsync(
-                body.SessionId, body.Result, tools, ct);
+                body.SessionId, body.ToolCallId, body.Result, tools, ct);
             return await WriteResultAsync(response, result);
         });
 
@@ -61,7 +61,14 @@ public static class VoiceEndpoints
             if (session is null) return Results.NotFound();
 
             var messages = session.Messages
-                .Select(m => new { role = m.Role.ToString(), text = m.Text, at = m.CreatedAt })
+                .Select(m => new
+                {
+                    role = m.Role.ToString(),
+                    text = m.Text,
+                    toolCallId = m.ToolCallId,
+                    toolCalls = m.ToolCalls.Select(c => new { id = c.CallId, name = c.Name, arguments = c.ArgumentsJson }),
+                    at = m.CreatedAt
+                })
                 .ToList();
 
             return Results.Ok(new { sessionId = session.PublicId, messages });
@@ -101,6 +108,7 @@ public static class VoiceEndpoints
 
     private record ToolResultRequest(
         Guid SessionId,
+        string? ToolCallId,
         string Result,
         string? ToolsJson);
 }
