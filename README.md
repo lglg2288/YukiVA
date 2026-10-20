@@ -39,6 +39,9 @@ dotnet user-secrets set "Tts:ElevenLabs:ApiKey" "<ElevenLabs>" --project src/Orc
 
 # 4. Оркестратор → http://localhost:5000
 dotnet run --project src/Orchestrator/YukiVA.Orchestrator.Api
+
+# 5. Клиент (Windows): зажмите пробел и говорите, Esc — перебить
+dotnet run --project src/Client/YukiVA.Client.Wpf
 ```
 
 Проверить без клиента:
@@ -56,6 +59,7 @@ curl -N -F audio=@speech.wav -F tools=[] http://localhost:5000/api/voice
 
 ```bash
 dotnet test src/Orchestrator/YukiVA.Orchestrator.slnx --filter "Category!=Manual"
+dotnet test src/Client/YukiVA.Client.Core.Tests
 ```
 
 Тестам репозитория нужен запущенный Docker (Testcontainers). Тесты

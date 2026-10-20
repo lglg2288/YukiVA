@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="YukiVA.Client.Core.Tests/YukiVA.Client.Core.Tests.csproj" />
+  <Project Path="YukiVA.Client.Core/YukiVA.Client.Core.csproj" />
+  <Project Path="YukiVA.Client.Wpf/YukiVA.Client.Wpf.csproj" />
+</Solution>
