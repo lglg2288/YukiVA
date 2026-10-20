@@ -46,10 +46,35 @@ public static class DependencyInjection
         services.Configure<LlmOptions>(configuration.GetSection(LlmOptions.SectionName));
         services.AddScoped<ISessionRepository, SessionRepository>();
         services.AddScoped<ISpeechToText, SttGrpcClient>();
-        services.AddScoped<ITextToSpeech, TtsGrpcClient>();
+        AddTextToSpeech(services, configuration);
         services.AddScoped<ProcessVoiceTurnHandler>();
 
 
         return services;
+    }
+
+    // Оба TTS регистрируются под ключами (выбор в UI — Фаза 2),
+    // а ITextToSpeech без ключа — тот, что указан в Tts:Provider.
+    private static void AddTextToSpeech(IServiceCollection services, IConfiguration configuration)
+    {
+        services.Configure<TtsOptions>(configuration.GetSection(TtsOptions.SectionName));
+
+        services.AddHttpClient<ElevenLabsTtsService>((sp, client) =>
+        {
+            var elevenLabs = sp.GetRequiredService<IOptions<TtsOptions>>().Value.ElevenLabs;
+            client.BaseAddress = new Uri(elevenLabs.BaseUrl);
+            client.DefaultRequestHeaders.Add("xi-api-key", elevenLabs.ApiKey);
+        });
+        services.AddKeyedScoped<ITextToSpeech>(TtsOptions.ElevenLabsProvider,
+            (sp, _) => sp.GetRequiredService<ElevenLabsTtsService>());
+        services.AddKeyedScoped<ITextToSpeech, TtsGrpcClient>(TtsOptions.XttsProvider);
+
+        var provider = configuration[$"{TtsOptions.SectionName}:{nameof(TtsOptions.Provider)}"]
+            ?? TtsOptions.ElevenLabsProvider;
+        if (provider is not (TtsOptions.ElevenLabsProvider or TtsOptions.XttsProvider))
+            throw new InvalidOperationException(
+                $"Неизвестный Tts:Provider '{provider}'. Допустимо: {TtsOptions.ElevenLabsProvider}, {TtsOptions.XttsProvider}.");
+
+        services.AddScoped<ITextToSpeech>(sp => sp.GetRequiredKeyedService<ITextToSpeech>(provider));
     }
 }

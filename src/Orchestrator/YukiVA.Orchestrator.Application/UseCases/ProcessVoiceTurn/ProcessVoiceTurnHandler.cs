@@ -1,5 +1,6 @@
 using System.Text;
 using YukiVA.Orchestrator.Application.Abstractions;
+using YukiVA.Orchestrator.Application.Audio;
 using YukiVA.Orchestrator.Domain.Entities;
 using YukiVA.Orchestrator.Application.Models;
 
@@ -33,7 +34,7 @@ public class ProcessVoiceTurnHandler
         var userText = await _stt.TranscribeAsync(audio, ct);
         if (string.IsNullOrWhiteSpace(userText))
         {
-            var audioEmpty = await _tts.SynthesizeAsync(
+            var audioEmpty = await SynthesizeWavAsync(
                 "Не удалось распознать речь. Попробуйте ещё раз.", ct);
             return ProcessVoiceTurnResult.Audio(
                 session.PublicId, "", "Не удалось распознать речь.", audioEmpty);
@@ -99,9 +100,19 @@ public class ProcessVoiceTurnHandler
         if (toolCalls.Count > 0)
             return ToolCallResult(session, toolCalls[0]);
 
-        var audioReply = await _tts.SynthesizeAsync(assistantText, ct);
+        var audioReply = await SynthesizeWavAsync(assistantText, ct);
         return ProcessVoiceTurnResult.Audio(
             session.PublicId, userText ?? "", assistantText, audioReply);
+    }
+
+    // Шаг 5 заменит ответ audio/wav потоком событий; пока склеиваем PCM в один WAV.
+    private async Task<byte[]> SynthesizeWavAsync(string text, CancellationToken ct)
+    {
+        using var pcm = new MemoryStream();
+        await foreach (var chunk in _tts.SynthesizeStreamAsync(text, ct))
+            pcm.Write(chunk.Span);
+
+        return Wav.Write(pcm.GetBuffer().AsSpan(0, (int)pcm.Length), AudioFormat.Pcm16Mono24k);
     }
 
     private static ProcessVoiceTurnResult ToolCallResult(ConversationSession session, ToolCall call) =>
