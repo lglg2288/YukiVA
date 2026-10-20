@@ -1,6 +1,33 @@
-@YukiVA.Orchestrator.Api_HostAddress = http://localhost:5203
+@host = http://localhost:5000
+@sessionId = 00000000-0000-0000-0000-000000000000
 
-GET {{YukiVA.Orchestrator.Api_HostAddress}}/weatherforecast/
+### Голосовой ход: ответ — поток SSE (session, audioFormat, transcript, text, audio, toolCalls, done)
+POST {{host}}/api/voice
+Content-Type: multipart/form-data; boundary=yuki
+
+--yuki
+Content-Disposition: form-data; name="audio"; filename="speech.wav"
+Content-Type: audio/wav
+
+< ./speech.wav
+--yuki
+Content-Disposition: form-data; name="tools"
+
+[]
+--yuki--
+
+### Продолжение после toolCalls: результаты ВСЕХ вызовов разом
+POST {{host}}/api/voice/tool-results
+Content-Type: application/json
+
+{
+  "sessionId": "{{sessionId}}",
+  "results": [
+    { "toolCallId": "call_0", "content": "42" }
+  ],
+  "toolsJson": "[]"
+}
+
+### История сессии
+GET {{host}}/api/sessions/{{sessionId}}/messages
 Accept: application/json
-
-###

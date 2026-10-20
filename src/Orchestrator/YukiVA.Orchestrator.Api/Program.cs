@@ -27,3 +27,6 @@ if (app.Configuration.GetValue<bool>("Database:ApplyMigrationsOnStartup"))
 app.UseMiddleware<ApiKeyMiddleware>();
 app.MapVoiceEndpoints();
 app.Run();
+
+// Для WebApplicationFactory в интеграционных тестах.
+public partial class Program;
