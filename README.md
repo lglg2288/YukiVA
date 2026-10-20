@@ -47,6 +47,9 @@ dotnet run --project src/Orchestrator/YukiVA.Orchestrator.Api
 curl -N -F audio=@speech.wav -F tools=[] http://localhost:5000/api/voice
 ```
 
+Демо-база «ERP» для MCP-инструментов (порт 5433, только чтение — `erp_reader`):
+`docker compose -f deploy/demo-erp/docker-compose.yml up -d`.
+
 Локальный TTS вместо облака: `Tts:Provider = Xtts` (сервис в `src/Services/YukiVA.Service.TTS`).
 
 ## Тесты

@@ -1,0 +1,24 @@
+# Демо-база «ERP» для MCP-инструментов: дистрибьютор компьютерной техники.
+# Запуск:   docker compose -f deploy/demo-erp/docker-compose.yml up -d
+# С нуля:   docker compose -f deploy/demo-erp/docker-compose.yml down -v  (init-скрипты выполнятся заново)
+services:
+  demo-erp:
+    image: postgres:17
+    container_name: yukiva-demo-erp
+    environment:
+      POSTGRES_DB: erp
+      POSTGRES_USER: erp_admin
+      POSTGRES_PASSWORD: erp_admin_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./init:/docker-entrypoint-initdb.d:ro
+      - demo-erp-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U erp_admin -d erp"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  demo-erp-data:
