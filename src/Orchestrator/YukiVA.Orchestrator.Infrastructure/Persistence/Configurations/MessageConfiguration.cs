@@ -28,7 +28,12 @@ public class MessageConfiguration : IEntityTypeConfiguration<Message>
             .HasMaxLength(20)
             .IsRequired();
 
-        builder.Property(m => m.Text).IsRequired();
+        builder.Property(m => m.Text);
+        builder.Property(m => m.ToolCallId).HasMaxLength(100);
         builder.Property(m => m.CreatedAt).IsRequired();
+
+        // Вызовы инструментов — value objects, одной jsonb-колонкой в строке сообщения.
+        builder.OwnsMany(m => m.ToolCalls, b => b.ToJson("tool_calls"));
+        builder.Navigation(m => m.ToolCalls).UsePropertyAccessMode(PropertyAccessMode.Field);
     }
 }

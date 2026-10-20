@@ -22,7 +22,8 @@ public class SessionRepository : ISessionRepository
     public async Task<ConversationSession?> GetByPublicIdAsync(Guid publicId, CancellationToken cancellationToken = default)
     {
         return await _db.Sessions
-            .Include(s => s.Messages)
+            // Порядок важен: по нему считаются PendingToolCalls и строится история для LLM.
+            .Include(s => s.Messages.OrderBy(m => m.Id))
             .FirstOrDefaultAsync(s => s.PublicId == publicId, cancellationToken);
     }
 

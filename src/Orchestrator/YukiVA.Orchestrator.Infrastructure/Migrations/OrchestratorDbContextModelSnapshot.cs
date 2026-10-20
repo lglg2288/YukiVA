@@ -67,8 +67,11 @@ namespace YukiVA.Orchestrator.Infrastructure.Migrations
                         .HasColumnType("bigint");
 
                     b.Property<string>("Text")
-                        .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<string>("ToolCallId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.HasKey("Id");
 
@@ -87,6 +90,36 @@ namespace YukiVA.Orchestrator.Infrastructure.Migrations
                         .HasForeignKey("SessionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.OwnsMany("YukiVA.Orchestrator.Domain.Entities.ToolCall", "ToolCalls", b1 =>
+                        {
+                            b1.Property<long>("MessageId");
+
+                            b1.Property<int>("__synthesizedOrdinal")
+                                .ValueGeneratedOnAdd();
+
+                            b1.Property<string>("ArgumentsJson")
+                                .IsRequired();
+
+                            b1.Property<string>("CallId")
+                                .IsRequired();
+
+                            b1.Property<string>("Name")
+                                .IsRequired();
+
+                            b1.HasKey("MessageId", "__synthesizedOrdinal");
+
+                            b1.ToTable("messages");
+
+                            b1
+                                .ToJson("tool_calls")
+                                .HasColumnType("jsonb");
+
+                            b1.WithOwner()
+                                .HasForeignKey("MessageId");
+                        });
+
+                    b.Navigation("ToolCalls");
                 });
 
             modelBuilder.Entity("YukiVA.Orchestrator.Domain.Entities.ConversationSession", b =>

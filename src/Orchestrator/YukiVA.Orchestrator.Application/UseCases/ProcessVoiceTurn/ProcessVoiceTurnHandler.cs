@@ -1,6 +1,5 @@
 using YukiVA.Orchestrator.Application.Abstractions;
 using YukiVA.Orchestrator.Domain.Entities;
-using YukiVA.Orchestrator.Domain.Enums;
 using YukiVA.Orchestrator.Application.Models;
 
 namespace YukiVA.Orchestrator.Application.UseCases.ProcessVoiceTurn;
@@ -39,7 +38,7 @@ public class ProcessVoiceTurnHandler
                 session.PublicId, "", "Не удалось распознать речь.", audioEmpty);
         }
 
-        session.AddMessage(MessageRole.User, userText);
+        session.AddUserMessage(userText);
 
         return await CompleteAndBuildResultAsync(session, userText, availableTools, ct);
     }
@@ -47,6 +46,7 @@ public class ProcessVoiceTurnHandler
     /// <summary>Продолжение после исполнения инструмента клиентом.</summary>
     public async Task<ProcessVoiceTurnResult> HandleToolResultAsync(
         Guid sessionPublicId,
+        string? toolCallId,
         string toolResult,
         IReadOnlyList<ToolDefinition> availableTools,
         CancellationToken ct = default)
@@ -54,8 +54,13 @@ public class ProcessVoiceTurnHandler
         var session = await _sessions.GetByPublicIdAsync(sessionPublicId, ct)
             ?? throw new InvalidOperationException($"Сессия {sessionPublicId} не найдена.");
 
-        // результат инструмента кладём в историю как сообщение роли Tool
-        session.AddMessage(MessageRole.Tool, toolResult);
+        // Клиент пока присылает один результат; без id — отвечаем на единственный висящий вызов.
+        // Несколько результатов за раз — шаг 5 (POST /api/voice/tool-results).
+        toolCallId ??= session.PendingToolCalls.Count == 1
+            ? session.PendingToolCalls[0].CallId
+            : throw new InvalidOperationException("Не указан toolCallId, а висящих вызовов не один.");
+
+        session.AddToolResult(toolCallId, toolResult);
 
         return await CompleteAndBuildResultAsync(session, userText: null, availableTools, ct);
     }
@@ -71,8 +76,10 @@ public class ProcessVoiceTurnHandler
 
         if (llmResult.IsToolCall)
         {
-            session.AddMessage(MessageRole.Assistant,
-                $"[tool_call:{llmResult.ToolName}] {llmResult.ToolArgumentsJson}");
+            session.AddAssistantMessage(llmResult.Text, new[]
+            {
+                new ToolCall(llmResult.ToolCallId!, llmResult.ToolName!, llmResult.ToolArgumentsJson!)
+            });
             await _sessions.SaveChangesAsync(ct);
 
             return ProcessVoiceTurnResult.ToolCall(
@@ -83,7 +90,7 @@ public class ProcessVoiceTurnHandler
         }
 
         var assistantText = llmResult.Text ?? "";
-        session.AddMessage(MessageRole.Assistant, assistantText);
+        session.AddAssistantMessage(assistantText, Array.Empty<ToolCall>());
         await _sessions.SaveChangesAsync(ct);
 
         var audioReply = await _tts.SynthesizeAsync(assistantText, ct);
