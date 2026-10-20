@@ -3,11 +3,15 @@ using YukiVA.Orchestrator.Domain.Entities;
 
 namespace YukiVA.Orchestrator.Application.Abstractions;
 
-/// <summary>Языковая модель: по истории диалога возвращает ответ ассистента.</summary>
+/// <summary>Языковая модель: по истории диалога потоково отдаёт ответ ассистента.</summary>
 public interface ILlmService
 {
-    Task<LlmResult> CompleteAsync(
+    /// <summary>
+    /// Дельты текста по мере генерации, затем (если были) один <see cref="LlmToolCalls"/>
+    /// со всеми вызовами, последним — <see cref="LlmCompleted"/>.
+    /// </summary>
+    IAsyncEnumerable<LlmStreamEvent> StreamAsync(
         IReadOnlyList<Message> history,
-        IReadOnlyList<ToolDefinition> availableTools,
-        CancellationToken cancellationToken = default);
+        IReadOnlyList<ToolDefinition> tools,
+        CancellationToken ct);
 }
