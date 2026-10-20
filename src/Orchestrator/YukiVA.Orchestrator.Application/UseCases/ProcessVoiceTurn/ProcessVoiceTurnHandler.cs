@@ -210,8 +210,10 @@ public class ProcessVoiceTurnHandler
     private async Task SpeakAsync(ChannelReader<string> sentences, ChannelWriter<TurnEvent> events, CancellationToken ct)
     {
         var seq = 0;
+        var index = 0;
         await foreach (var sentence in sentences.ReadAllAsync(ct))
         {
+            await events.WriteAsync(new SentenceStarted(index++, sentence), ct);
             await foreach (var pcm in _tts.SynthesizeStreamAsync(sentence, ct))
                 await events.WriteAsync(new AudioChunk(seq++, pcm), ct);
         }
@@ -221,6 +223,7 @@ public class ProcessVoiceTurnHandler
         string text, [EnumeratorCancellation] CancellationToken ct)
     {
         yield return new AssistantTextDelta(text);
+        yield return new SentenceStarted(0, text);
 
         var seq = 0;
         await foreach (var pcm in _tts.SynthesizeStreamAsync(text, ct))

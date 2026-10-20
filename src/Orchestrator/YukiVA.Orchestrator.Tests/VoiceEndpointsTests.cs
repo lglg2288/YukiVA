@@ -65,6 +65,11 @@ public class VoiceEndpointsTests : IDisposable
         Assert.Equal("Пользователей сейчас ровно сорок два.",
             string.Concat(events.Where(e => e.EventType == "text").Select(e => Json(e).GetProperty("delta").GetString())));
 
+        var sentence = Json(events.Single(e => e.EventType == "sentence"));
+        Assert.Equal(0, sentence.GetProperty("index").GetInt32());
+        Assert.Equal("Пользователей сейчас ровно сорок два.", sentence.GetProperty("text").GetString());
+        Assert.True(events.FindIndex(e => e.EventType == "sentence") < events.FindIndex(e => e.EventType == "audio"));
+
         var audio = events.Where(e => e.EventType == "audio").Select(Json).ToList();
         Assert.Equal(new[] { 0, 1 }, audio.Select(a => a.GetProperty("seq").GetInt32()));
         Assert.Equal("Пользователей сейчас ровно сорок два.#1",
