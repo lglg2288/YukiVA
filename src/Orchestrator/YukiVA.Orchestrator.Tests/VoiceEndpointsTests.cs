@@ -29,6 +29,7 @@ public class VoiceEndpointsTests : IDisposable
         _factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
             builder.UseEnvironment("Testing");
+            builder.UseSetting("Warmup:Enabled", "false"); // никаких запросов в облако из тестов
             builder.ConfigureTestServices(services =>
             {
                 services.AddScoped<ISpeechToText>(_ => new FakeStt("сколько пользователей?"));
