@@ -235,8 +235,11 @@ public class ProcessVoiceTurnHandler
             return await _sessions.GetByPublicIdAsync(id, ct)
                 ?? throw new InvalidOperationException($"Сессия {id} не найдена.");
         }
+        // Сохраняем сразу: клиент получит sessionId первым событием и может прийти с ним,
+        // даже если ход оборвётся до первого сообщения (пустая речь, ошибка STT).
         var session = new ConversationSession();
         await _sessions.AddAsync(session, ct);
+        await _sessions.SaveChangesAsync(ct);
         return session;
     }
 

@@ -1,22 +1,20 @@
-using System.Text;
 using System.Text.Json;
 using YukiVA.Orchestrator.Application.Abstractions;
-using YukiVA.Orchestrator.Application.Audio;
-using YukiVA.Orchestrator.Application.UseCases.ProcessVoiceTurn;
 using YukiVA.Orchestrator.Application.Models;
-using YukiVA.Orchestrator.Domain.Entities;
+using YukiVA.Orchestrator.Application.UseCases.ProcessVoiceTurn;
 
 namespace YukiVA.Orchestrator.Api.Endpoints;
-
 
 public static class VoiceEndpoints
 {
     public static void MapVoiceEndpoints(this IEndpointRouteBuilder app)
     {
+        // Голосовой ход: multipart (audio + tools) → поток SSE-событий.
         app.MapPost("/api/voice", async (
             HttpRequest request,
-            HttpResponse response,
             ProcessVoiceTurnHandler handler,
+            ISessionRepository sessions,
+            ILoggerFactory loggers,
             Guid? sessionId,
             CancellationToken ct) =>
         {
@@ -29,6 +27,13 @@ public static class VoiceEndpoints
             if (audioFile is null || audioFile.Length == 0)
                 return Results.BadRequest("Отсутствует аудио (часть 'audio').");
 
+            if (!TryParseTools(form["tools"], out var tools))
+                return Results.BadRequest("Часть 'tools' — не JSON-массив ToolDefinition.");
+
+            // Пока поток не начат, неизвестную сессию ещё можно вернуть честным 404.
+            if (sessionId is Guid id && await sessions.GetByPublicIdAsync(id, ct) is null)
+                return Results.NotFound($"Сессия {id} не найдена.");
+
             byte[] audio;
             using (var ms = new MemoryStream())
             {
@@ -36,32 +41,37 @@ public static class VoiceEndpoints
                 audio = ms.ToArray();
             }
 
-            var tools = ParseTools(form["tools"]);
-
-            return await WriteLegacyResultAsync(response, handler.HandleVoiceAsync(audio, sessionId, tools, ct));
+            return TypedResults.ServerSentEvents(TurnEventStream.ToSseAsync(
+                handler.HandleVoiceAsync(audio, sessionId, tools, ct),
+                loggers.CreateLogger("YukiVA.Orchestrator.VoiceTurn"),
+                ct));
         });
 
-        app.MapPost("/api/voice/tool-result", async (
-            HttpResponse response,
+        // Продолжение хода: результаты ВСЕХ запрошенных вызовов → поток SSE-событий.
+        app.MapPost("/api/voice/tool-results", async (
+            ToolResultsRequest body,
             ProcessVoiceTurnHandler handler,
             ISessionRepository sessions,
-            ToolResultRequest body,
+            ILoggerFactory loggers,
             CancellationToken ct) =>
         {
-            var tools = ParseTools(body.ToolsJson);
+            if (!TryParseTools(body.ToolsJson, out var tools))
+                return Results.BadRequest("Поле 'toolsJson' — не JSON-массив ToolDefinition.");
 
-            // Старый клиент шлёт один результат без id — отвечаем на единственный висящий вызов.
-            var toolCallId = body.ToolCallId;
-            if (toolCallId is null)
-            {
-                var session = await sessions.GetByPublicIdAsync(body.SessionId, ct);
-                if (session?.PendingToolCalls is not { Count: 1 } pending)
-                    return Results.BadRequest("Не указан toolCallId, а висящих вызовов не один.");
-                toolCallId = pending[0].CallId;
-            }
+            var session = await sessions.GetByPublicIdAsync(body.SessionId, ct);
+            if (session is null)
+                return Results.NotFound($"Сессия {body.SessionId} не найдена.");
 
-            var results = new[] { new ToolResult(toolCallId, body.Result) };
-            return await WriteLegacyResultAsync(response, handler.HandleToolResultsAsync(body.SessionId, results, tools, ct));
+            var results = body.Results.Select(r => new ToolResult(r.ToolCallId, r.Content)).ToList();
+            var pending = session.PendingToolCalls.Select(c => c.CallId).ToHashSet();
+            if (!pending.SetEquals(results.Select(r => r.ToolCallId)) || results.Count != pending.Count)
+                return Results.BadRequest(
+                    $"Нужны результаты ровно для вызовов: {string.Join(", ", pending)}.");
+
+            return TypedResults.ServerSentEvents(TurnEventStream.ToSseAsync(
+                handler.HandleToolResultsAsync(body.SessionId, results, tools, ct),
+                loggers.CreateLogger("YukiVA.Orchestrator.VoiceTurn"),
+                ct));
         });
 
         app.MapGet("/api/sessions/{publicId:guid}/messages", async (
@@ -87,54 +97,29 @@ public static class VoiceEndpoints
         });
     }
 
-    // Временный мост до SSE (шаг 5): собираем поток событий в прежний ответ —
-    // JSON с первым вызовом инструмента либо WAV с заголовком X-Assistant-Text.
-    private static async Task<IResult> WriteLegacyResultAsync(
-        HttpResponse response, IAsyncEnumerable<TurnEvent> events)
+    private static bool TryParseTools(string? json, out IReadOnlyList<ToolDefinition> tools)
     {
-        var text = new StringBuilder();
-        using var pcm = new MemoryStream();
-        IReadOnlyList<ToolCall> toolCalls = Array.Empty<ToolCall>();
-
-        await foreach (var e in events)
-        {
-            switch (e)
-            {
-                case SessionStarted started: response.Headers["X-Session-Id"] = started.SessionId.ToString(); break;
-                case AssistantTextDelta delta: text.Append(delta.Text); break;
-                case AudioChunk chunk: pcm.Write(chunk.Pcm.Span); break;
-                case ToolCallsRequested requested: toolCalls = requested.Calls; break;
-            }
-        }
-
-        if (toolCalls.Count > 0)
-        {
-            return Results.Json(new
-            {
-                type = "tool_call",
-                sessionId = response.Headers["X-Session-Id"].ToString(),
-                toolCallId = toolCalls[0].CallId,
-                name = toolCalls[0].Name,
-                arguments = toolCalls[0].ArgumentsJson
-            });
-        }
-
-        response.Headers["X-Assistant-Text"] = System.Net.WebUtility.UrlEncode(text.ToString());
-        return Results.File(Wav.Write(pcm.ToArray(), AudioFormat.Pcm16Mono24k), "audio/wav");
-    }
-
-    private static IReadOnlyList<ToolDefinition> ParseTools(string? json)
-    {
+        tools = Array.Empty<ToolDefinition>();
         if (string.IsNullOrWhiteSpace(json))
-            return Array.Empty<ToolDefinition>();
+            return true;
 
-        return JsonSerializer.Deserialize<List<ToolDefinition>>(json)
-            ?? new List<ToolDefinition>();
+        try
+        {
+            // Web-настройки: camelCase и PascalCase одинаково.
+            tools = JsonSerializer.Deserialize<List<ToolDefinition>>(json, JsonSerializerOptions.Web)
+                ?? new List<ToolDefinition>();
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
     }
 
-    private record ToolResultRequest(
+    private record ToolResultsRequest(
         Guid SessionId,
-        string? ToolCallId,
-        string Result,
+        IReadOnlyList<ToolResultDto> Results,
         string? ToolsJson);
+
+    private record ToolResultDto(string ToolCallId, string Content);
 }
