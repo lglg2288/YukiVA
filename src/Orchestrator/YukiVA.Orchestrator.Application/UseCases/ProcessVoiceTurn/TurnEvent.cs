@@ -14,6 +14,12 @@ public sealed record UserTranscript(string Text) : TurnEvent;
 /// <summary>Кусок текста ответа по мере генерации.</summary>
 public sealed record AssistantTextDelta(string Text) : TurnEvent;
 
+/// <summary>
+/// Начинается озвучка предложения: все AudioChunk до следующего SentenceStarted — его звук.
+/// По нему клиент подсвечивает в тексте то, что сейчас звучит. Index растёт в пределах ответа.
+/// </summary>
+public sealed record SentenceStarted(int Index, string Text) : TurnEvent;
+
 /// <summary>Кусок озвучки в формате AudioFormat.Pcm16Mono24k; Seq растёт в пределах хода.</summary>
 public sealed record AudioChunk(int Seq, ReadOnlyMemory<byte> Pcm) : TurnEvent;
 

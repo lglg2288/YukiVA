@@ -42,6 +42,13 @@ public class ProcessVoiceTurnHandlerTests
             new[] { "Меня зовут Юки, я ассистент.#0", "Меня зовут Юки, я ассистент.#1", "Помогаю голосом и текстом.#0", "Помогаю голосом и текстом.#1" },
             audio.Select(a => Encoding.UTF8.GetString(a.Pcm.Span)));
 
+        // Перед звуком каждого предложения — SentenceStarted с его текстом.
+        Assert.Equal(
+            new[] { "S0", "A0", "A1", "S1", "A2", "A3" },
+            events.Where(e => e is SentenceStarted or AudioChunk)
+                .Select(e => e is SentenceStarted s ? $"S{s.Index}" : $"A{((AudioChunk)e).Seq}"));
+        Assert.Equal("Помогаю голосом и текстом.", events.OfType<SentenceStarted>().Last().Text);
+
         Assert.Equal(new[] { MessageRole.User, MessageRole.Assistant }, session.Messages.Select(m => m.Role));
         Assert.Equal("Меня зовут Юки, я ассистент. Помогаю голосом и текстом.", session.Messages[1].Text);
     }

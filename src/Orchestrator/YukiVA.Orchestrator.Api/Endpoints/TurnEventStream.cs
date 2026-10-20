@@ -83,6 +83,7 @@ public static class TurnEventStream
         SessionStarted s => new(new { sessionId = s.SessionId }, "session"),
         UserTranscript t => new(new { text = t.Text }, "transcript"),
         AssistantTextDelta d => new(new { delta = d.Text }, "text"),
+        SentenceStarted s => new(new { index = s.Index, text = s.Text }, "sentence"),
         AudioChunk a => new(new { seq = a.Seq, pcm = Convert.ToBase64String(a.Pcm.Span) }, "audio"),
         ToolCallsRequested c => new(
             new { calls = c.Calls.Select(x => new { id = x.CallId, name = x.Name, arguments = x.ArgumentsJson }) },

@@ -71,7 +71,7 @@ dotnet test src/Orchestrator/YukiVA.Orchestrator.slnx --filter "Category!=Manual
 | `GET` | `/api/sessions/{id}/messages` | JSON |
 
 События потока: `session`, `audioFormat`, `transcript`, `text`, `audio`
-(PCM 16 бит, моно, 24 кГц в base64), `toolCalls`, `error`, `done`.
+(PCM 16 бит, моно, 24 кГц в base64), `sentence` (какое предложение сейчас озвучивается), `toolCalls`, `error`, `done`.
 
 ## Лицензия
 
