@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.IO;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -78,7 +80,7 @@ public sealed class McpToolExecutor : IToolExecutor, IAsyncDisposable
             {
                 Name = _options.Name,
                 Command = _options.Command,
-                Arguments = _options.Arguments
+                Arguments = WithContainerName(_options.Arguments)
             });
             _client = await McpClient.CreateAsync(transport, cancellationToken: ct);
 
@@ -104,10 +106,50 @@ public sealed class McpToolExecutor : IToolExecutor, IAsyncDisposable
 
     private async Task DisposeClientAsync()
     {
+        // Сначала контейнер: тогда docker CLI завершится сам и клиент закроется сразу, а не по таймауту.
+        await RemoveContainerAsync();
+
         if (_client is not null)
-            await _client.DisposeAsync();
+        {
+            try { await _client.DisposeAsync(); }
+            catch (Exception ex) { _logger.LogDebug(ex, "MCP {Name}: ошибка при закрытии", _options.Name); }
+        }
         _client = null;
         _tools = Array.Empty<ToolDefinition>();
+    }
+
+    // У docker run своё имя контейнера на каждый запуск клиента: закрытие убивает только процесс
+    // docker CLI, а контейнер продолжал бы работать — удаляем его по имени.
+    private string? ContainerName => IsDockerRun ? $"yuki-mcp-{_options.Name}-{Environment.ProcessId}" : null;
+
+    private bool IsDockerRun =>
+        string.Equals(Path.GetFileNameWithoutExtension(_options.Command), "docker", StringComparison.OrdinalIgnoreCase)
+        && _options.Arguments.FirstOrDefault() == "run";
+
+    private string[] WithContainerName(string[] arguments) =>
+        ContainerName is { } name && !arguments.Contains("--name")
+            ? arguments.Take(1).Concat(new[] { "--name", name }).Concat(arguments.Skip(1)).ToArray()
+            : arguments;
+
+    private async Task RemoveContainerAsync()
+    {
+        if (ContainerName is not { } name) return;
+        try
+        {
+            using var docker = Process.Start(new ProcessStartInfo(_options.Command, $"rm -f {name}")
+            {
+                CreateNoWindow = true,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
+            });
+            if (docker is not null)
+                await docker.WaitForExitAsync(new CancellationTokenSource(TimeSpan.FromSeconds(3)).Token);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Не удалось удалить контейнер {Name}", name);
+        }
     }
 
     private void SetStatus(McpStatus status)

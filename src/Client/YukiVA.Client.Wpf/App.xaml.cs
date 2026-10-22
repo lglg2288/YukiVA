@@ -74,10 +74,16 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
-        if (_host is not null)
+        if (_host is { } host)
         {
-            _host.StopAsync(TimeSpan.FromSeconds(3)).GetAwaiter().GetResult();
-            _host.Dispose(); // закроет MCP-сервер и аудиоустройство
+            // Не в UI-потоке: асинхронная остановка, которой нужен Dispatcher, иначе повисла бы навсегда.
+            // DisposeAsync, а не Dispose: MCP-клиент освобождается только асинхронно.
+            var shutdown = Task.Run(async () =>
+            {
+                await host.StopAsync(TimeSpan.FromSeconds(3));
+                await ((IAsyncDisposable)host).DisposeAsync();
+            });
+            shutdown.Wait(TimeSpan.FromSeconds(5));
         }
         base.OnExit(e);
     }

@@ -4,10 +4,59 @@
         xmlns:vm="clr-namespace:YukiVA.Client.Wpf.ViewModels"
         xmlns:c="clr-namespace:YukiVA.Client.Wpf.Controls"
         Title="Yuki harness" Width="1040" Height="700" MinWidth="760" MinHeight="480"
-        Background="{StaticResource Page}" FontFamily="Segoe UI" FontSize="14"
-        Foreground="{StaticResource TextPrimary}">
+        FontFamily="Segoe UI" FontSize="14" Foreground="{StaticResource TextPrimary}"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent" ResizeMode="CanResize">
+
+    <!-- Своя шапка вместо системной: перетаскивание, двойной клик и ресайз остаются системными. -->
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="52" ResizeBorderThickness="6" CornerRadius="0"
+                      GlassFrameThickness="0" UseAeroCaptionButtons="False" />
+    </WindowChrome.WindowChrome>
 
     <Window.Resources>
+        <Style x:Key="CaptionButton" TargetType="Button">
+            <Setter Property="Width" Value="46" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="WindowChrome.IsHitTestVisibleInChrome" Value="True" />
+            <Setter Property="Foreground" Value="{StaticResource TextSecondary}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome" Background="Transparent" CornerRadius="6">
+                            <TextBlock Text="{TemplateBinding Content}" FontFamily="Segoe MDL2 Assets" FontSize="10"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="{StaticResource Surface1}" />
+                                <Setter Property="Foreground" Value="{StaticResource TextPrimary}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="CloseButton" TargetType="Button" BasedOn="{StaticResource CaptionButton}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome" Background="Transparent" CornerRadius="6">
+                            <TextBlock Text="{TemplateBinding Content}" FontFamily="Segoe MDL2 Assets" FontSize="10"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="{StaticResource CloseHover}" />
+                                <Setter Property="Foreground" Value="White" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="Pill" TargetType="Border">
             <Setter Property="CornerRadius" Value="6" />
             <Setter Property="Padding" Value="8,2" />
@@ -94,7 +143,9 @@
                                Foreground="{StaticResource TextMuted}" TextTrimming="CharacterEllipsis" />
                     <TextBox Margin="0,6,0,0" Text="{Binding Result, Mode=OneWay}" IsReadOnly="True"
                              FontFamily="Consolas" FontSize="12" TextWrapping="Wrap" MaxHeight="220"
-                             VerticalScrollBarVisibility="Auto" BorderThickness="0" Background="{StaticResource Surface1}">
+                             VerticalScrollBarVisibility="Auto" BorderThickness="0" Background="{StaticResource Surface1}"
+                             Foreground="{StaticResource TextPrimary}" CaretBrush="{StaticResource TextPrimary}"
+                             SelectionBrush="{StaticResource Bar}">
                         <TextBox.Style>
                             <Style TargetType="TextBox">
                                 <Setter Property="Visibility" Value="Collapsed" />
@@ -121,6 +172,8 @@
         </DataTemplate>
     </Window.Resources>
 
+    <Border x:Name="Frame" CornerRadius="12" Background="{StaticResource Page}"
+            BorderBrush="{StaticResource Border}" BorderThickness="1">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -133,9 +186,15 @@
         </Grid.ColumnDefinitions>
 
         <!-- Шапка -->
-        <Border Grid.ColumnSpan="2" Padding="16,10" Background="{StaticResource Surface2}"
-                BorderBrush="{StaticResource Border}" BorderThickness="0,0,0,1">
+        <Border x:Name="Header" Grid.ColumnSpan="2" Height="52" Padding="16,0,8,0" CornerRadius="12,12,0,0"
+                Background="{StaticResource Surface2}" BorderBrush="{StaticResource Border}" BorderThickness="0,0,0,1">
             <DockPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+                    <Button Style="{StaticResource CaptionButton}" Content="&#xE921;" ToolTip="Свернуть" Click="OnMinimize" />
+                    <Button x:Name="MaximizeButton" Style="{StaticResource CaptionButton}" Content="&#xE922;"
+                            ToolTip="Развернуть" Click="OnMaximize" />
+                    <Button Style="{StaticResource CloseButton}" Content="&#xE8BB;" ToolTip="Закрыть" Click="OnClose" />
+                </StackPanel>
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
                     <Border>
                         <Border.Style>
@@ -153,6 +212,8 @@
                         <TextBlock Text="{Binding ToolsStatus}" FontSize="12" />
                     </Border>
                     <Button Margin="10,0,0,0" Content="Новый диалог" Focusable="False" Cursor="Hand"
+                            Foreground="{StaticResource TextPrimary}"
+                            WindowChrome.IsHitTestVisibleInChrome="True"
                             Command="{Binding NewConversationCommand}">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
@@ -230,13 +291,26 @@
                 </StackPanel>
                 <ListBox x:Name="LatencyLog" ItemsSource="{Binding Log}" BorderThickness="0" Background="Transparent"
                          FontFamily="Consolas" FontSize="11" Foreground="{StaticResource TextSecondary}"
-                         ScrollViewer.HorizontalScrollBarVisibility="Disabled" Focusable="False" />
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled" Focusable="False">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="Focusable" Value="False" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ListBoxItem">
+                                        <ContentPresenter Margin="0,1" />
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                </ListBox>
             </DockPanel>
         </Border>
 
         <!-- Push-to-talk -->
-        <Border Grid.Row="2" Grid.ColumnSpan="2" Padding="16,10" Background="{StaticResource Surface2}"
-                BorderBrush="{StaticResource Border}" BorderThickness="0,1,0,0">
+        <Border x:Name="Footer" Grid.Row="2" Grid.ColumnSpan="2" Padding="16,10" CornerRadius="0,0,12,12"
+                Background="{StaticResource Surface2}" BorderBrush="{StaticResource Border}" BorderThickness="0,1,0,0">
             <DockPanel>
                 <Border x:Name="MicButton" Width="42" Height="42" CornerRadius="21" Cursor="Hand"
                         MouseLeftButtonDown="OnMicDown" MouseLeftButtonUp="OnMicUp">
@@ -265,4 +339,5 @@
             </DockPanel>
         </Border>
     </Grid>
+    </Border>
 </Window>

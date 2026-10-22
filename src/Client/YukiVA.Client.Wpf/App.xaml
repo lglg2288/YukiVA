@@ -4,22 +4,52 @@
              xmlns:c="clr-namespace:YukiVA.Client.Wpf.Controls"
              ShutdownMode="OnMainWindowClose">
     <Application.Resources>
-        <!-- Плоская светлая палитра: поверхности, текст и роли (accent / success / danger). -->
-        <SolidColorBrush x:Key="Page" Color="#F7F6F2" />
-        <SolidColorBrush x:Key="Surface1" Color="#F1EFE8" />
-        <SolidColorBrush x:Key="Surface2" Color="#FFFFFF" />
-        <SolidColorBrush x:Key="Border" Color="#E3E1DA" />
-        <SolidColorBrush x:Key="TextPrimary" Color="#1F1E1C" />
-        <SolidColorBrush x:Key="TextSecondary" Color="#5F5E5A" />
-        <SolidColorBrush x:Key="TextMuted" Color="#9A9890" />
-        <SolidColorBrush x:Key="AccentBg" Color="#E6F1FB" />
-        <SolidColorBrush x:Key="AccentText" Color="#0C447C" />
-        <SolidColorBrush x:Key="SuccessBg" Color="#EAF3DE" />
-        <SolidColorBrush x:Key="SuccessText" Color="#3B6D11" />
-        <SolidColorBrush x:Key="DangerBg" Color="#FCEBEB" />
-        <SolidColorBrush x:Key="DangerText" Color="#A32D2D" />
-        <SolidColorBrush x:Key="Highlight" Color="#FAE3B4" />
+        <!-- Тёмная плоская палитра: поверхности, текст и роли (accent / success / danger). -->
+        <SolidColorBrush x:Key="Page" Color="#1C1C1E" />
+        <SolidColorBrush x:Key="Surface1" Color="#2C2C2F" />
+        <SolidColorBrush x:Key="Surface2" Color="#232325" />
+        <SolidColorBrush x:Key="Border" Color="#38383C" />
+        <SolidColorBrush x:Key="TextPrimary" Color="#ECECEC" />
+        <SolidColorBrush x:Key="TextSecondary" Color="#A8A8AD" />
+        <SolidColorBrush x:Key="TextMuted" Color="#6E6E74" />
+        <SolidColorBrush x:Key="AccentBg" Color="#1E3A5C" />
+        <SolidColorBrush x:Key="AccentText" Color="#B5D4F4" />
+        <SolidColorBrush x:Key="SuccessBg" Color="#23361A" />
+        <SolidColorBrush x:Key="SuccessText" Color="#A6D47A" />
+        <SolidColorBrush x:Key="DangerBg" Color="#4A1E1E" />
+        <SolidColorBrush x:Key="DangerText" Color="#F4A6A6" />
+        <SolidColorBrush x:Key="Highlight" Color="#5C4A1E" />
         <SolidColorBrush x:Key="Bar" Color="#378ADD" />
+        <SolidColorBrush x:Key="CloseHover" Color="#C42B1C" />
         <c:StageMatchesConverter x:Key="StageMatches" />
+
+        <!-- Тонкая полоса прокрутки без стрелок: системная светлая выбивается из тёмной темы. -->
+        <Style TargetType="ScrollBar">
+            <Setter Property="Width" Value="8" />
+            <Setter Property="MinWidth" Value="8" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollBar">
+                        <Track x:Name="PART_Track" IsDirectionReversed="True" Margin="0,2">
+                            <Track.Thumb>
+                                <Thumb>
+                                    <Thumb.Template>
+                                        <ControlTemplate TargetType="Thumb">
+                                            <Border x:Name="Grip" CornerRadius="4" Background="{StaticResource Border}" />
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="Grip" Property="Background" Value="{StaticResource TextMuted}" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+                            </Track.Thumb>
+                        </Track>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Application.Resources>
 </Application>
