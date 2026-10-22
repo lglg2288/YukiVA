@@ -24,23 +24,20 @@ flowchart LR
 Нужны .NET SDK 10, Docker и, для STT, видеокарта NVIDIA.
 
 ```bash
-# 1. База (миграции применятся сами при старте API)
-docker compose up -d
-
-# 2. Распознавание речи
+# 1. Распознавание речи
 cd src/Services/YukiVA.Service.STT
 bash download_models.sh large-v3-turbo
 docker compose up -d stt-large-v3-turbo
 cd -
 
-# 3. Ключи
+# 2. Ключи
 dotnet user-secrets set "Llm:ApiKey" "<DeepSeek>" --project src/Orchestrator/YukiVA.Orchestrator.Api
 dotnet user-secrets set "Tts:ElevenLabs:ApiKey" "<ElevenLabs>" --project src/Orchestrator/YukiVA.Orchestrator.Api
 
-# 4. Оркестратор → http://localhost:5000
+# 3. Оркестратор → http://localhost:5000 (сам поднимет базу из docker-compose.yml и применит миграции)
 dotnet run --project src/Orchestrator/YukiVA.Orchestrator.Api
 
-# 5. Клиент (Windows): зажмите пробел и говорите, Esc — перебить
+# 4. Клиент (Windows): зажмите пробел и говорите, Esc — перебить
 dotnet run --project src/Client/YukiVA.Client.Wpf
 ```
 
