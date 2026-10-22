@@ -24,6 +24,33 @@ public partial class MainWindow : Window
         };
     }
 
+    // Своя шапка: кнопки окна и вид развёрнутого окна (без скругления и не под панель задач).
+    private void OnMinimize(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
+
+    private void OnMaximize(object sender, RoutedEventArgs e) =>
+        WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+
+    private void OnClose(object sender, RoutedEventArgs e) => Close();
+
+    protected override void OnStateChanged(EventArgs e)
+    {
+        base.OnStateChanged(e);
+
+        var maximized = WindowState == WindowState.Maximized;
+        // Окно без системной рамки разворачивается на весь экран, закрывая панель задач.
+        MaxWidth = maximized ? SystemParameters.WorkArea.Width : double.PositiveInfinity;
+        MaxHeight = maximized ? SystemParameters.WorkArea.Height : double.PositiveInfinity;
+
+        var radius = maximized ? 0 : 12;
+        Frame.CornerRadius = new CornerRadius(radius);
+        Frame.BorderThickness = new Thickness(maximized ? 0 : 1);
+        Header.CornerRadius = new CornerRadius(radius, radius, 0, 0);
+        Footer.CornerRadius = new CornerRadius(0, 0, radius, radius);
+
+        MaximizeButton.Content = maximized ? "\uE923" : "\uE922";
+        MaximizeButton.ToolTip = maximized ? "Восстановить" : "Развернуть";
+    }
+
     // Push-to-talk: зажал пробел — говоришь, отпустил — ход уходит на сервер.
     protected override void OnPreviewKeyDown(KeyEventArgs e)
     {
